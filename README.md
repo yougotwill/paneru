@@ -221,15 +221,19 @@ animation_speed = 50
 # auto_center = false
 
 [bindings]
-# Moves the focus between windows.
+# Moves the focus between windows. If there are no windows when moving up or
+# down, will swtich focus to the display above or below.
 window_focus_west = ["cmd - h", "cmd - leftarrow"]
 window_focus_east = ["cmd - l", "cmd - rightarrow"]
 window_focus_north = ["cmd - k", "cmd - uparrow"]
 window_focus_south = ["cmd - j", "cmd - downarrow"]
 
-# Swaps windows in chosen direction.
+# Swaps windows in chosen direction. If there are no windows to swap, will
+# move the window to a display above or below.
 window_swap_west = "alt - h"
 window_swap_east = "alt - l"
+window_swap_north = "alt - k"
+window_swap_south = "alt - j"
 
 # Jump to the left-most or right-most windows.
 window_focus_first = "cmd + shift - h"
