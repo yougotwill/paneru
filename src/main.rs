@@ -1,3 +1,5 @@
+#![allow(clippy::cast_possible_truncation)]
+
 use clap::{Parser, Subcommand};
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 

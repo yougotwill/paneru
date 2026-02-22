@@ -51,7 +51,6 @@ mod windows;
 pub type Origin = IVec2;
 pub type Size = IVec2;
 
-#[allow(clippy::cast_possible_truncation)]
 pub fn origin_from(point: CGPoint) -> Origin {
     Origin::new(point.x as i32, point.y as i32)
 }
@@ -60,7 +59,6 @@ pub fn origin_to(point: Origin) -> CGPoint {
     CGPoint::new(point.x.into(), point.y.into())
 }
 
-#[allow(clippy::cast_possible_truncation)]
 pub fn size_from(size: CGSize) -> Size {
     Size::new(size.width as i32, size.height as i32)
 }

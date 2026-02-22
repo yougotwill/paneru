@@ -453,7 +453,7 @@ pub(super) fn timeout_ticker(
 /// * `orphaned_spaces` - A `Populated` query for `(Entity, &mut OrphanedStrip)` components.
 /// * `active_display` - A mutable `ActiveDisplayMut` system parameter for the currently active display.
 /// * `commands` - Bevy commands to despawn entities.
-#[allow(clippy::needless_pass_by_value, clippy::cast_possible_truncation)]
+#[allow(clippy::needless_pass_by_value)]
 pub(super) fn find_orphaned_workspaces(
     orphans: Populated<(&LayoutStrip, Entity), Without<ChildOf>>,
     workspaces: Populated<(&LayoutStrip, Entity, &ChildOf), With<ChildOf>>,
@@ -642,7 +642,7 @@ pub(super) fn workspace_change_watcher(
 /// * `time` - The Bevy `Time` resource for calculating delta time.
 /// * `config` - The `Config` resource, used for animation speed.
 /// * `commands` - Bevy commands to remove the `RepositionMarker` when animation is complete.
-#[allow(clippy::needless_pass_by_value, clippy::cast_possible_truncation)]
+#[allow(clippy::needless_pass_by_value)]
 #[instrument(level = Level::TRACE, skip_all)]
 pub(super) fn animate_windows(
     windows: Populated<(&mut Window, Entity, &RepositionMarker)>,
@@ -687,7 +687,7 @@ pub(super) fn animate_windows(
 /// * `windows` - A `Populated` query for `(&mut Window, Entity, &ResizeMarker)` components.
 /// * `active_display` - An `ActiveDisplay` system parameter providing immutable access to the active display.
 /// * `commands` - Bevy commands to remove the `ResizeMarker` when resizing is complete.
-#[allow(clippy::needless_pass_by_value, clippy::cast_possible_truncation)]
+#[allow(clippy::needless_pass_by_value)]
 #[instrument(level = Level::TRACE, skip_all)]
 pub(super) fn animate_resize_windows(
     windows: Populated<(&mut Window, Entity, &ResizeMarker, Has<RepositionMarker>)>,
@@ -724,7 +724,7 @@ pub(super) fn animate_resize_windows(
     }
 }
 
-#[allow(clippy::needless_pass_by_value, clippy::cast_possible_truncation)]
+#[allow(clippy::needless_pass_by_value)]
 pub(super) fn window_swiper(
     sliding: Populated<(Entity, Has<Unmanaged>, &WindowSwipeMarker)>,
     windows: Query<(&Window, Option<&RepositionMarker>, Option<&ResizeMarker>)>,

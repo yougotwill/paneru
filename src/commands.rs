@@ -353,7 +353,7 @@ fn command_center_window(
 /// * `windows` - A mutable query for all `Window` components.
 /// * `commands` - Bevy commands to trigger events.
 /// * `config` - The `Config` resource.
-#[allow(clippy::needless_pass_by_value, clippy::cast_possible_truncation)]
+#[allow(clippy::needless_pass_by_value)]
 fn resize_window(
     mut messages: MessageReader<Event>,
     current_focus: Single<(&Window, Entity), With<FocusedMarker>>,
@@ -401,7 +401,7 @@ fn resize_window(
 /// * `windows` - A mutable query for all `Window` components.
 /// * `commands` - Bevy commands to trigger events.
 /// * `config` - The `Config` resource.
-#[allow(clippy::needless_pass_by_value, clippy::cast_possible_truncation)]
+#[allow(clippy::needless_pass_by_value)]
 fn full_width_window(
     mut messages: MessageReader<Event>,
     current_focus: Single<(&Window, Entity), With<FocusedMarker>>,

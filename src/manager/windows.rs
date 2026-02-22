@@ -342,7 +342,6 @@ impl WindowApi for WindowOS {
     /// # Returns
     ///
     /// `Ok(())` if the frame is updated successfully, otherwise `Err(Error)`.
-    #[allow(clippy::cast_possible_truncation)]
     fn update_frame(&mut self, display_bounds: &IRect) -> Result<()> {
         let window_ref = self.ax_element.as_ptr();
 

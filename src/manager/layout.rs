@@ -393,7 +393,6 @@ impl std::fmt::Display for LayoutStrip {
     }
 }
 
-#[allow(clippy::cast_possible_truncation)]
 pub fn binpack_heights(heights: &[i32], min_height: i32, total_height: i32) -> Option<Vec<i32>> {
     let mut count = heights.len();
     let mut output = vec![];

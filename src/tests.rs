@@ -568,7 +568,6 @@ fn run_main_loop(
 fn verify_window_positions(expected_positions: &[(WinID, (i32, i32))], world: &mut World) {
     let mut query = world.query::<&Window>();
 
-    #[allow(clippy::cast_possible_truncation)]
     for window in query.iter(world) {
         if let Some((window_id, (x, y))) = expected_positions.iter().find(|id| id.0 == window.id())
         {
