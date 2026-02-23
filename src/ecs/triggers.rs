@@ -685,6 +685,7 @@ pub(super) fn window_unmanaged_trigger(
     trigger: On<Add, Unmanaged>,
     windows: Windows,
     mut active_display: ActiveDisplayMut,
+    mut config: Configuration,
     mut commands: Commands,
 ) {
     const UNMANAGED_MAX_SCREEN_RATIO_NUM: i32 = 4;
@@ -782,7 +783,7 @@ pub(super) fn window_unmanaged_trigger(
 
         Unmanaged::Minimized | Unmanaged::Hidden => {
             debug!("Entity {entity} is minimized.");
-            give_away_focus(entity, &windows, active_strip, &mut commands);
+            give_away_focus(entity, &windows, active_strip, &mut config, &mut commands);
         }
     }
     active_strip.remove(entity);
@@ -801,7 +802,8 @@ pub(super) fn window_managed_trigger(
     reshuffle_around(entity, &mut commands);
 }
 
-/// Handles the event when a window is destroyed. It removes the window from the ECS world and relevant displays.
+/// Handles the event when a window is destroyed. The windows itself is not removed from the layout
+/// strip. This happens in the On<Remove, Window> trigger.
 ///
 /// # Arguments
 ///
@@ -811,10 +813,13 @@ pub(super) fn window_managed_trigger(
 /// * `displays` - A query for all displays.
 /// * `commands` - Bevy commands to despawn entities and trigger events.
 #[allow(clippy::needless_pass_by_value)]
+#[instrument(level = Level::DEBUG, skip_all)]
 pub(super) fn window_destroyed_trigger(
     trigger: On<WMEventTrigger>,
     windows: Windows,
+    active_display: ActiveDisplay,
     mut apps: Query<&mut Application>,
+    mut config: Configuration,
     mut commands: Commands,
 ) {
     let Event::WindowDestroyed { window_id } = trigger.event().0 else {
@@ -832,7 +837,20 @@ pub(super) fn window_destroyed_trigger(
     };
     app.unobserve_window(window);
 
+    give_away_focus(
+        entity,
+        &windows,
+        active_display.active_strip(),
+        &mut config,
+        &mut commands,
+    );
+
+    // NOTE: If the entity had an Unmanaged marker, despawning it will cause it to be re-inserted
+    // into the strip again. Therefore we do it just before despawning the entity itself, so it
+    // then can be properly removed again in the main entity despawn trigger.
     commands.entity(entity).remove::<Unmanaged>().despawn();
+
+    // The window entity will be removed from the layout strip in the On<Remove> trigger.
 }
 
 /// Moves the focus away to a neighbour window.
@@ -840,19 +858,36 @@ fn give_away_focus(
     entity: Entity,
     windows: &Windows,
     active_strip: &LayoutStrip,
+    config: &mut Configuration,
     commands: &mut Commands,
 ) {
     // Move focus to a left neighbour if the panel has more windows.
-    if active_strip.len() > 1
+    let other_window = if active_strip.len() > 1
         && let Some((window, neighbour)) = active_strip
             .left_neighbour(entity)
             .or_else(|| active_strip.right_neighbour(entity))
             .and_then(|e| windows.get(e).zip(Some(e)))
     {
         let window_id = window.id();
-        debug!("giving away focus to {neighbour} {window_id}");
+        debug!("giving away focus to neighbour {neighbour} {window_id}");
+        Some((window_id, neighbour))
+    } else {
+        // Unmanaged window was despawned. Raise the first managed window in the workspace.
+        active_strip
+            .get(0)
+            .ok()
+            .and_then(|column| column.top())
+            .and_then(|entity| windows.get(entity).zip(Some(entity)))
+            .map(|(window, entity)| (window.id(), entity))
+            .inspect(|(window_id, entity)| {
+                debug!("giving away focus to first window {entity} {window_id}");
+            })
+    };
+
+    if let Some((window_id, entity)) = other_window {
+        config.set_ffm_flag(None);
         commands.trigger(WMEventTrigger(Event::WindowFocused { window_id }));
-        reshuffle_around(neighbour, commands);
+        reshuffle_around(entity, commands);
     }
 }
 
@@ -1109,11 +1144,9 @@ pub(super) fn stray_focus_observer(
 }
 
 #[allow(clippy::needless_pass_by_value)]
-pub(super) fn window_removal_observer(
+pub(super) fn window_removal_trigger(
     trigger: On<Remove, Window>,
-    windows: Windows,
     mut workspaces: Query<&mut LayoutStrip>,
-    mut commands: Commands,
 ) {
     let entity = trigger.event().entity;
 
@@ -1121,7 +1154,6 @@ pub(super) fn window_removal_observer(
         .iter_mut()
         .find(|strip| strip.index_of(entity).is_ok())
     {
-        give_away_focus(entity, &windows, &strip, &mut commands);
         strip.remove(entity);
     }
 }

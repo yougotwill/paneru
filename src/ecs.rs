@@ -118,7 +118,7 @@ pub fn register_triggers(app: &mut bevy::app::App) {
         .add_observer(triggers::stray_focus_observer)
         .add_observer(triggers::locate_dock_trigger)
         .add_observer(triggers::send_message_trigger)
-        .add_observer(triggers::window_removal_observer);
+        .add_observer(triggers::window_removal_trigger);
 }
 
 /// Marker component for the currently focused window.
