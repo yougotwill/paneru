@@ -1,7 +1,7 @@
 use accessibility_sys::{
-    AXUIElementRef, AXValueCreate, AXValueGetValue, kAXFloatingWindowSubrole, kAXPositionAttribute,
-    kAXRaiseAction, kAXSizeAttribute, kAXStandardWindowSubrole, kAXUnknownSubrole,
-    kAXValueTypeCGPoint, kAXValueTypeCGSize, kAXWindowRole,
+    AXUIElementRef, AXValueCreate, AXValueGetValue, kAXDialogSubrole, kAXFloatingWindowSubrole,
+    kAXPositionAttribute, kAXRaiseAction, kAXSizeAttribute, kAXStandardWindowSubrole,
+    kAXUnknownSubrole, kAXValueTypeCGPoint, kAXValueTypeCGSize, kAXWindowRole,
 };
 use bevy::ecs::component::Component;
 use bevy::math::IRect;
@@ -12,7 +12,7 @@ use std::ptr::null_mut;
 use std::thread;
 use std::time::Duration;
 use stdext::function_name;
-use tracing::{debug, trace};
+use tracing::{Level, debug, instrument, trace};
 
 use super::skylight::{
     _AXUIElementGetWindow, _SLPSSetFrontProcessWithOptions, AXUIElementCopyAttributeValue,
@@ -113,6 +113,7 @@ impl WindowOS {
     /// # Returns
     ///
     /// `Ok(Window)` if the window is created successfully, otherwise `Err(Error)`.
+    #[instrument(level = Level::DEBUG, ret)]
     pub fn new(element: &CFRetained<AXUIWrapper>) -> Result<Self> {
         let id = ax_window_id(element.as_ptr())?;
         let window = Self {
@@ -126,15 +127,19 @@ impl WindowOS {
 
         if window.is_unknown() {
             return Err(Error::invalid_window(&format!(
-                "Ignoring AXUnknown window, id: {}",
-                window.id()
+                "Ignoring AXUnknown window, id: {}, role {}, subrole {}",
+                window.id(),
+                window.role().unwrap_or_default(),
+                window.subrole().unwrap_or_default(),
             )));
         }
 
         if !window.is_real() {
             return Err(Error::invalid_window(&format!(
-                "Ignoring non-real window, id: {}",
-                window.id()
+                "Ignoring non-real window, id: {}, role {}, subrole {}",
+                window.id(),
+                window.role().unwrap_or_default(),
+                window.subrole().unwrap_or_default(),
             )));
         }
 
@@ -170,7 +175,8 @@ impl WindowOS {
 
         subrole.as_deref() == Some(kAXStandardWindowSubrole)
             || (role.as_deref() == Some(kAXWindowRole)
-                && subrole.as_deref() == Some(kAXFloatingWindowSubrole))
+                && subrole.as_deref() == Some(kAXFloatingWindowSubrole)
+                || subrole.as_deref() == Some(kAXDialogSubrole))
     }
 
     /// Makes the window the key window for its application by sending synthesized events.
@@ -263,6 +269,7 @@ impl WindowApi for WindowOS {
     /// # Returns
     ///
     /// `true` if the window is a root window, `false` otherwise.
+    #[instrument(level = Level::DEBUG, ret)]
     fn is_root(&self) -> bool {
         let cftype = self.ax_element.as_ref();
         self.ax_element
@@ -270,6 +277,7 @@ impl WindowApi for WindowOS {
             .is_ok_and(|parent| !CFEqual(Some(&*parent), Some(cftype)))
     }
 
+    #[instrument(level = Level::DEBUG, ret)]
     fn is_minimized(&self) -> bool {
         self.ax_element.minimized().is_ok_and(|minimized| minimized)
     }
@@ -399,6 +407,7 @@ impl WindowApi for WindowOS {
     /// # Arguments
     ///
     /// * `currently_focused` - A reference to the currently focused window.
+    #[instrument(level = Level::DEBUG, skip(currently_focused))]
     fn focus_without_raise(
         &self,
         psn: ProcessSerialNumber,
@@ -436,6 +445,7 @@ impl WindowApi for WindowOS {
     }
 
     /// Focuses the window and raises it to the front.
+    #[instrument(level = Level::DEBUG)]
     fn focus_with_raise(&self, psn: ProcessSerialNumber) {
         let window_id = self.id();
         unsafe {
