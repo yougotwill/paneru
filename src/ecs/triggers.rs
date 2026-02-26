@@ -692,10 +692,11 @@ pub(super) fn dispatch_application_messages(
     }
 }
 
-#[allow(clippy::needless_pass_by_value)]
+#[allow(clippy::needless_pass_by_value, clippy::too_many_lines)]
 pub(super) fn window_unmanaged_trigger(
     trigger: On<Add, Unmanaged>,
     windows: Windows,
+    apps: Query<(Entity, &Application)>,
     mut active_display: ActiveDisplayMut,
     mut config: Configuration,
     mut commands: Commands,
@@ -757,31 +758,53 @@ pub(super) fn window_unmanaged_trigger(
             let Some(window) = windows.get(entity) else {
                 return;
             };
-            let frame = window.frame();
-            let max_width = display_bounds.width() * UNMANAGED_MAX_SCREEN_RATIO_NUM
-                / UNMANAGED_MAX_SCREEN_RATIO_DEN;
-            let max_height = display_bounds.height() * UNMANAGED_MAX_SCREEN_RATIO_NUM
-                / UNMANAGED_MAX_SCREEN_RATIO_DEN;
-            let new_width = frame.width().min(max_width);
-            let new_height = frame.height().min(max_height);
 
-            let mut target_frame =
-                IRect::from_corners(frame.min, frame.min + Origin::new(new_width, new_height));
-            target_frame =
-                clamp_origin_to_bounds(target_frame, target_frame.size(), display_bounds);
-            target_frame =
-                offset_frame_within_bounds(target_frame, display_bounds, UNMANAGED_POP_OFFSET);
+            let title = window.title().unwrap_or_default();
+            let window_properties = windows
+                .find_parent(window.id())
+                .and_then(|(_, _, parent)| apps.get(parent).ok())
+                .and_then(|(_, app)| app.bundle_id())
+                .map(|bundle_id| config.find_window_properties(&title, bundle_id));
 
-            if target_frame.size() != frame.size() {
-                resize_entity(
-                    entity,
-                    Size::new(target_frame.width(), target_frame.height()),
-                    display_id,
-                    &mut commands,
-                );
-            }
-            if target_frame.min != frame.min {
-                reposition_entity(entity, target_frame.min, display_id, &mut commands);
+            if let Some(properties) = window_properties {
+                debug!("Applying window properties for '{}'", window.id());
+                if let Some((rx, ry, rw, rh)) =
+                    properties.iter().find_map(WindowParams::grid_ratios)
+                {
+                    let x = (f64::from(display_bounds.width()) * rx) as i32;
+                    let y = (f64::from(display_bounds.height()) * ry) as i32;
+                    let w = (f64::from(display_bounds.width()) * rw) as i32;
+                    let h = (f64::from(display_bounds.height()) * rh) as i32;
+                    reposition_entity(entity, Origin::new(x, y), display_id, &mut commands);
+                    resize_entity(entity, Size::new(w, h), display_id, &mut commands);
+                }
+            } else {
+                let frame = window.frame();
+                let max_width = display_bounds.width() * UNMANAGED_MAX_SCREEN_RATIO_NUM
+                    / UNMANAGED_MAX_SCREEN_RATIO_DEN;
+                let max_height = display_bounds.height() * UNMANAGED_MAX_SCREEN_RATIO_NUM
+                    / UNMANAGED_MAX_SCREEN_RATIO_DEN;
+                let new_width = frame.width().min(max_width);
+                let new_height = frame.height().min(max_height);
+
+                let mut target_frame =
+                    IRect::from_corners(frame.min, frame.min + Origin::new(new_width, new_height));
+                target_frame =
+                    clamp_origin_to_bounds(target_frame, target_frame.size(), display_bounds);
+                target_frame =
+                    offset_frame_within_bounds(target_frame, display_bounds, UNMANAGED_POP_OFFSET);
+
+                if target_frame.size() != frame.size() {
+                    resize_entity(
+                        entity,
+                        Size::new(target_frame.width(), target_frame.height()),
+                        display_id,
+                        &mut commands,
+                    );
+                }
+                if target_frame.min != frame.min {
+                    reposition_entity(entity, target_frame.min, display_id, &mut commands);
+                }
             }
 
             if let Some(neighbour) = active_strip
