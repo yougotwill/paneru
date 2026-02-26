@@ -1,6 +1,6 @@
 [package]
 name = "paneru"
-version = "0.3.3"
+version = "0.3.4"
 edition = "2024"
 rust-version = "1.89.0"
 description = "A sliding, tiling window manager for MacOS."
@@ -41,6 +41,6 @@ regex = "1.12.3"
 scopeguard = "1.2.0"
 serde = { version = "1.0.228", features = ["derive"] }
 stdext = "0.3.3"
-toml = "0.9.11"
+toml = "1.0.3"
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
