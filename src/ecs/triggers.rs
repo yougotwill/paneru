@@ -760,24 +760,20 @@ pub(super) fn window_unmanaged_trigger(
             };
 
             let title = window.title().unwrap_or_default();
-            let window_properties = windows
+            let grid_ratios = windows
                 .find_parent(window.id())
                 .and_then(|(_, _, parent)| apps.get(parent).ok())
                 .and_then(|(_, app)| app.bundle_id())
-                .map(|bundle_id| config.find_window_properties(&title, bundle_id));
+                .map(|bundle_id| config.find_window_properties(&title, bundle_id))
+                .and_then(|properties| properties.iter().find_map(WindowParams::grid_ratios));
 
-            if let Some(properties) = window_properties {
-                debug!("Applying window properties for '{}'", window.id());
-                if let Some((rx, ry, rw, rh)) =
-                    properties.iter().find_map(WindowParams::grid_ratios)
-                {
-                    let x = (f64::from(display_bounds.width()) * rx) as i32;
-                    let y = (f64::from(display_bounds.height()) * ry) as i32;
-                    let w = (f64::from(display_bounds.width()) * rw) as i32;
-                    let h = (f64::from(display_bounds.height()) * rh) as i32;
-                    reposition_entity(entity, Origin::new(x, y), display_id, &mut commands);
-                    resize_entity(entity, Size::new(w, h), display_id, &mut commands);
-                }
+            if let Some((rx, ry, rw, rh)) = grid_ratios {
+                let x = (f64::from(display_bounds.width()) * rx) as i32;
+                let y = (f64::from(display_bounds.height()) * ry) as i32;
+                let w = (f64::from(display_bounds.width()) * rw) as i32;
+                let h = (f64::from(display_bounds.height()) * rh) as i32;
+                reposition_entity(entity, Origin::new(x, y), display_id, &mut commands);
+                resize_entity(entity, Size::new(w, h), display_id, &mut commands);
             } else {
                 let frame = window.frame();
                 let max_width = display_bounds.width() * UNMANAGED_MAX_SCREEN_RATIO_NUM
