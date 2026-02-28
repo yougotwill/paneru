@@ -1,1 +1,4 @@
 /target
+
+# Outputs from `nix build`
+/result
