@@ -55,13 +55,13 @@
       packages.aarch64-darwin.default = self.packages.aarch64-darwin.paneru;
 
       overlays.default = final: prev: {
-        paneru = self.packages.aarch64-darwin.paneru;
+        paneru = self.packages.aarch64-darwin.default;
       };
 
       # Allows running `nix develop` to get a shell with `paneru` and rust build dependencies available.
       devShells.aarch64-darwin.default = pkgs.mkShellNoCC {
         packages = [
-          self.packages.aarch64-darwin.paneru
+          self.packages.aarch64-darwin.default
           pkgs.rustc
           pkgs.cargo
         ];
