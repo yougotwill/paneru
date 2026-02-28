@@ -9,11 +9,15 @@
     { self, nixpkgs }:
     let
       pkgs = import nixpkgs { system = "aarch64-darwin"; };
-      mkDate = longDate: (nixpkgs.lib.concatStringsSep "-" [
-        (builtins.substring 0 4 longDate)
-        (builtins.substring 4 2 longDate)
-        (builtins.substring 6 2 longDate)
-      ]);
+
+      mkDate =
+        longDate:
+        (nixpkgs.lib.concatStringsSep "-" [
+          (builtins.substring 0 4 longDate)
+          (builtins.substring 4 2 longDate)
+          (builtins.substring 6 2 longDate)
+        ]);
+
       props = builtins.fromTOML (builtins.readFile ./Cargo.toml);
       version =
         props.package.version
@@ -21,9 +25,11 @@
         + (mkDate (self.lastModifiedDate or "19700101"))
         + "_"
         + (self.shortRev or "dirty");
+
+      pname = "paneru";
+
       package = pkgs.rustPlatform.buildRustPackage {
-        pname = "paneru";
-        inherit version;
+        inherit pname version;
         src = pkgs.lib.cleanSource ./.;
         postPatch = ''
           substituteInPlace build.rs --replace-fail \
@@ -37,20 +43,33 @@
 
         # Do not run tests
         doCheck = false;
+
+        meta = {
+          # Tells `lib.getExe` which package name to get.
+          mainProgram = pname;
+        };
       };
     in
     {
-      packages.aarch64-darwin.default = self.packages.aarch64-darwin.paneru;
       packages.aarch64-darwin.paneru = package;
+      packages.aarch64-darwin.default = self.packages.aarch64-darwin.paneru;
 
       overlays.default = final: prev: {
         paneru = self.packages.aarch64-darwin.paneru;
       };
 
-      # Allows running `nix develop` to get a shell with `paneru` available.
-      devShells."aarch64-darwin".default = pkgs.mkShellNoCC {
-        packages = [ package ];
+      # Allows running `nix develop` to get a shell with `paneru` and rust build dependencies available.
+      devShells.aarch64-darwin.default = pkgs.mkShellNoCC {
+        packages = [
+          self.packages.aarch64-darwin.paneru
+          pkgs.rustc
+          pkgs.cargo
+        ];
       };
+
+      # Run `nix fmt .` to format all nix files in the repo.
+      # `nixfmt-tree` allows passing a directory to format all files within it.
+      formatter.aarch64-darwin = pkgs.nixfmt-tree;
 
       homeModules.paneru =
         { config, lib, ... }:
@@ -74,7 +93,7 @@
 
             package = lib.mkOption {
               type = lib.types.package;
-              default = package;
+              default = self.packages.aarch64-darwin.default;
               description = "The paneru package to use.";
             };
 
@@ -135,7 +154,7 @@
                 RunAtLoad = true;
                 StandardOutPath = "/tmp/paneru.log";
                 StandardErrorPath = "/tmp/paneru.err.log";
-                Program = cfg.package + /bin/paneru;
+                Program = lib.getExe cfg.package;
               };
             };
 
