@@ -3,7 +3,7 @@ use bevy::ecs::entity::{Entity, EntityHashSet};
 use bevy::ecs::hierarchy::ChildOf;
 use bevy::ecs::message::MessageReader;
 use bevy::ecs::query::{Has, With, Without};
-use bevy::ecs::system::{Commands, Query, Res, ResMut, Single};
+use bevy::ecs::system::{Commands, Query, Res, Single};
 use bevy::math::IRect;
 use tracing::{Level, instrument};
 use tracing::{debug, info};
@@ -14,13 +14,12 @@ use crate::config::Config;
 use crate::ecs::layout::{Column, LayoutStrip, StackItem};
 use crate::ecs::params::{ActiveDisplay, ActiveDisplayMut, Windows};
 use crate::ecs::{
-    ActiveDisplayMarker, ActiveWorkspaceMarker, Bounds, FocusFollowsMouse, FocusedMarker,
-    FullWidthMarker, NativeFullscreenMarker, SelectedVirtualMarker, SendMessageTrigger, Unmanaged,
-    WMEventTrigger, focus_entity, reposition_entity, reshuffle_around, resize_entity,
+    ActiveDisplayMarker, ActiveWorkspaceMarker, Bounds, FocusedMarker, FullWidthMarker,
+    NativeFullscreenMarker, SelectedVirtualMarker, SendMessageTrigger, Unmanaged, focus_entity,
+    reposition_entity, reshuffle_around, resize_entity,
 };
 use crate::events::Event;
-use crate::manager::{Application, Display, Origin, Size, Window, WindowManager, origin_to};
-use crate::platform::Modifiers;
+use crate::manager::{Application, Display, Origin, Size, Window, WindowManager};
 
 /// Represents a cardinal or directional choice for window manipulation.
 #[derive(Clone, Debug)]
@@ -733,7 +732,6 @@ fn mouse_to_next_display(
     layout_strips: Query<(&LayoutStrip, Entity)>,
     displays: Query<(&Display, Entity, Has<ActiveDisplayMarker>)>,
     window_manager: Res<WindowManager>,
-    mut ffm_flag: ResMut<FocusFollowsMouse>,
     mut commands: Commands,
 ) {
     if !messages.read().any(|event| {
@@ -760,12 +758,12 @@ fn mouse_to_next_display(
     };
 
     let visible_width = |frame: IRect| other.bounds().intersect(frame).width();
-    let Some(frame) = other_strip
+    let Some((frame, entity)) = other_strip
         .all_windows()
         .iter()
-        .filter_map(|entity| windows.frame(*entity))
+        .filter_map(|entity| windows.frame(*entity).zip(Some(*entity)))
         .max_by(|left, right| {
-            if visible_width(*left) < visible_width(*right) {
+            if visible_width(left.0) < visible_width(right.0) {
                 std::cmp::Ordering::Less
             } else {
                 std::cmp::Ordering::Greater
@@ -780,12 +778,7 @@ fn mouse_to_next_display(
     debug!("warping mouse to {visible_frame:?}",);
     window_manager.warp_mouse(visible_frame.center());
 
-    let point = origin_to(visible_frame.center());
-    ffm_flag.as_mut().0 = None;
-    commands.trigger(WMEventTrigger(Event::MouseMoved {
-        point,
-        modifiers: Modifiers::empty(),
-    }));
+    focus_entity(entity, true, &mut commands);
 }
 
 /// Distributes heights equally among all windows in the currently focused stack.
