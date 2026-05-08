@@ -762,21 +762,12 @@ impl InnerConfig {
             for binding in bindings.all_mut() {
                 binding.command = parse_command(&argv)?;
 
-                let code = virtual_keys
-                    .iter()
-                    .find(|(key, _)| key == &binding.key)
-                    .map(|(_, code)| *code)
-                    .or_else(|| {
-                        literal_keycode()
-                            .find(|(key, _)| key == &binding.key)
-                            .map(|(_, code)| *code)
-                    });
-                if let Some(code) = code {
+                if let Some(code) = keycode_for_key_name(&binding.key, &virtual_keys) {
                     binding.code = code;
+                    info!("bind: {binding:?}");
                 } else {
                     error!("{}: invalid key '{}'", function_name!(), &binding.key);
                 }
-                info!("bind: {binding:?}");
             }
         }
 
@@ -1022,16 +1013,20 @@ fn resolve_keybinding_str(input: &str, virtual_keys: &[(String, u8)]) -> Result<
         )));
     }
 
-    let code = virtual_keys
+    let code = keycode_for_key_name(key, virtual_keys).ok_or_else(|| {
+        Error::InvalidConfig(format!("Unknown key '{key}' in keybinding: {input:?}"))
+    })?;
+
+    Ok((code, modifiers))
+}
+
+fn keycode_for_key_name(key: &str, virtual_keys: &[(String, u8)]) -> Option<u8> {
+    virtual_keys
         .iter()
         .find(|(k, _)| k == key)
         .map(|(_, c)| *c)
+        .or_else(|| virtual_keycode().find(|(k, _)| *k == key).map(|(_, c)| *c))
         .or_else(|| literal_keycode().find(|(k, _)| *k == key).map(|(_, c)| *c))
-        .ok_or_else(|| {
-            Error::InvalidConfig(format!("Unknown key '{key}' in keybinding: {input:?}"))
-        })?;
-
-    Ok((code, modifiers))
 }
 
 /// Parses a string containing modifier names (e.g., "alt", "shift", "cmd", "ctrl") separated by "+", and returns their combined bitmask.
@@ -1612,4 +1607,25 @@ fn test_config_defaults() {
     assert_eq!(config.border_width(), 2.0);
     assert_eq!(config.border_radius(), BorderRadiusOption::Auto);
     assert_eq!(config.menubar_height(), None);
+}
+
+#[test]
+fn test_static_virtual_key_names_can_be_bound() {
+    let config = Config::try_from(
+        r#"
+[options]
+
+[bindings]
+window_grow = "alt - minus"
+"#,
+    )
+    .unwrap();
+    let minus_keycode = virtual_keycode()
+        .find_map(|(key, code)| (*key == "minus").then_some(*code))
+        .unwrap();
+
+    assert!(matches!(
+        config.find_keybind(minus_keycode, Modifiers::ALT),
+        Some(Command::Window(Operation::Resize(ResizeDirection::Grow)))
+    ));
 }
