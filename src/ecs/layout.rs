@@ -748,7 +748,12 @@ fn layout_sizes_changed(
 fn layout_strip_changed(
     changed_strips: Populated<(&LayoutStrip, &ChildOf), Changed<LayoutStrip>>,
     mut windows: Query<
-        (&Position, &mut Bounds, &mut LayoutPosition, Has<FullWidthMarker>),
+        (
+            &Position,
+            &mut Bounds,
+            &mut LayoutPosition,
+            Has<FullWidthMarker>,
+        ),
         (Without<LayoutStrip>, With<Window>),
     >,
     displays: Query<(&Display, Option<&DockPosition>)>,

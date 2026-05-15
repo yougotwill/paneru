@@ -324,12 +324,12 @@ fn command_swap_focus(
             active_strip.len()
         );
 
-        if index == new_index {
-            if let Some(Column::Stack(stack)) = active_strip.get_column_mut(index) {
-                let pos_a = stack.iter().position(|i| i.contains(current))?;
-                let pos_b = stack.iter().position(|i| i.contains(other_window))?;
-                stack.swap(pos_a, pos_b);
-            }
+        if index == new_index
+            && let Some(Column::Stack(stack)) = active_strip.get_column_mut(index)
+        {
+            let pos_a = stack.iter().position(|i| i.contains(current))?;
+            let pos_b = stack.iter().position(|i| i.contains(other_window))?;
+            stack.swap(pos_a, pos_b);
         } else if index < new_index {
             (index..new_index).for_each(|idx| active_strip.swap(idx, idx + 1));
         } else {
@@ -573,11 +573,20 @@ fn full_width_window(
         }
         let width_ratio = windows.width_ratio(entity).unwrap_or(0.5);
         let height_ratio = f64::from(frame.height()) / f64::from(viewport.height());
-        commands
-            .entity(entity)
-            .try_insert(FullWidthMarker { width_ratio, height_ratio });
-        reposition_entity(entity, Origin::new(viewport.min.x, viewport.min.y), &mut commands);
-        resize_entity(entity, Size::new(viewport.width(), viewport.height()), &mut commands);
+        commands.entity(entity).try_insert(FullWidthMarker {
+            width_ratio,
+            height_ratio,
+        });
+        reposition_entity(
+            entity,
+            Origin::new(viewport.min.x, viewport.min.y),
+            &mut commands,
+        );
+        resize_entity(
+            entity,
+            Size::new(viewport.width(), viewport.height()),
+            &mut commands,
+        );
         reshuffle_around(entity, &mut commands);
     }
 }
